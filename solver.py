@@ -13,14 +13,23 @@ _CLEAN_99_BOARD = [
 ]
 
 _TEST_BOARD = [
-    "01?22110",
-    "012?2?10",
-    "00112110",
-    "00011111",
-    "1112?21?",
-    "1?12?222",
-    "1233211?",
-    "01??1011"
+    "????????",
+    "????????",
+    "?2???3??",
+    "????1111",
+    "?1??1000",
+    "??2?1000",
+    "????1111",
+    "?????1??"
+]
+
+_CHALLENGE_BOARD = [
+    '??????',
+    '???2??',
+    '???4??',
+    '?2??2?',
+    '?2222?',
+    '?1001?'
 ]
 
 # Special typing
@@ -34,6 +43,9 @@ class MineSAT:
         self.threads = num_solver_threads
 
     def try_tile(self, row: int, col: int) -> Optional[Coordinates]:
+        # Don't try to place a mine on a known tile
+        if self.board[row][col] != "?": return 
+
         # Set up our "board", with space to place borders that will simplify calculations.
         # e.g. With a 9x9 board, internally we'll represent it as 11x11 with the extra rows always set to 0
         board = cp_model.CpModel()
@@ -58,7 +70,7 @@ class MineSAT:
                         + board_vars[r+1][c-1] + board_vars[r+1][c] + board_vars[r+1][c+1] == int(tile) # Down-left, down, down-right
                     )
 
-        # Place the bomb
+        # Place the mine
         board.Add(board_vars[row][col] == 1)
 
         solver = cp_model.CpSolver()
