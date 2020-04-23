@@ -3,14 +3,12 @@ from solver import MineSAT
 from random import sample
 from typing import Tuple
 
-game = MSGame(10, 10, 10, 5680, "127.0.0.1")
+game = MSGame(10, 10, 10, 5684, "127.0.0.1")
 WIDTH = game.board.board_width
 HEIGHT = game.board.board_height
 # To keep track of tiles we don't want to pick, either discovered+safe or mine
 # TODO (maybe): Change UNDISCOVERED_TILES to 0-indexing? idk
 UNDISCOVERED_TILES = set( (x, y) for x in range(1, WIDTH+1) for y in range(1, HEIGHT+1) )
-# To keep track of what safe choices the user has already picked, kind of hacky...
-CHOSEN_SAFE_TILES = set()
 
 get_symbol = '012345678..?'
 
@@ -40,20 +38,32 @@ def main():
 
         solver = MineSAT(board)
         safe_tiles = []
-        # Remove already chosen tiles
-        for tile in solver.find_tiles():
-            if tile not in CHOSEN_SAFE_TILES:
-                safe_tiles.append(tile)
+        mine_tiles = []
+
+        # Find all guaranteed safe tiles
+        for tile in solver.find_tiles("safe"):
+            safe_tiles.append(tile)
+
+        # Find all guaranteed mine tiles
+        for tile in solver.find_tiles("mine"):
+            mine_tiles.append(tile)
 
         if len(safe_tiles) == 0:
             print("There are no guaranteed safe tiles! :(\n")
         else:
             print("Guaranteed safe tiles:")
-            for i, (x, y) in enumerate(safe_tiles):
-                print(f"{i}) Row: {x-1}, Column: {y-1}")
-        print("Additional options:")
+            for i, (y, x) in enumerate(safe_tiles):
+                print(f"{i}) Row: {y-1}, Column: {x-1}")
+
+        if len(mine_tiles) != 0:
+            print("\nFYI, these are guaranteed mine tiles:")
+            for (y, x) in mine_tiles:
+                print(f"@ Row: {y-1}, Column: {x-1}")
+        
+        print("\nAdditional options:")
         print("C) Choose a tile yourself!")
         print("F) Flag a tile!")
+        print("A) Flag all guarantee mine tiles!")
         print("U) Unflag a tile!")
         print("R) Pick a random tile!")
 
@@ -68,6 +78,13 @@ def main():
             if (moveX, moveY) in UNDISCOVERED_TILES:
                 UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
             continue
+        elif move == "a":
+            for moveY, moveX in mine_tiles:
+                moveX -= 1; moveY -= 1  # 1-indexed adjustment
+                game.play_move("flag", moveX, moveY)
+                if (moveX, moveY) in UNDISCOVERED_TILES:
+                    UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
+            continue
         elif move == "u":
             moveY, moveX = get_coord_input()
             game.play_move("unflag", moveX, moveY)
@@ -76,7 +93,6 @@ def main():
         elif move == "c":
             moveY, moveX = get_coord_input()
         elif move == "r":
-            mine_tiles = solver.find_tiles(tile_type="mine")
             for tile in mine_tiles:
                 if tile in UNDISCOVERED_TILES:
                     UNDISCOVERED_TILES.remove(tile)
@@ -86,7 +102,6 @@ def main():
             moveX -= 1; moveY -= 1  # 1-indexed adjustment
         elif move.isdecimal() and 0 <= int(move) < len(safe_tiles):
             moveY, moveX = safe_tiles[int(move)]
-            CHOSEN_SAFE_TILES.add( (moveX, moveY) )  # So we don't display moves the user has already made
             moveX -= 1; moveY -= 1  # 1-indexed adjustment
         else:
             print("Invalid input. Stop that! >:(")
