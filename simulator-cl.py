@@ -74,12 +74,7 @@ def main():
                     print(f"{i}) Row: {y-1}, Column: {x-1}")
             moveY, moveX = get_coord_input()
         elif move == "r":
-            for tile in solver.find_tiles("mine"):
-                if tile in UNDISCOVERED_TILES:
-                    UNDISCOVERED_TILES.remove(tile)
-            # Randomly get a tile from the now-updated UNDISCOVERED_TILES
-            moveY, moveX = sample(UNDISCOVERED_TILES, 1)[0]
-            UNDISCOVERED_TILES.remove( (moveX, moveY) )
+            moveY, moveX = pick_random_tile(solver.find_tiles("mine"))
             moveX -= 1; moveY -= 1  # 1-indexed adjustment
         elif move == "a":
             pass  # Auto play function goes here
@@ -134,10 +129,17 @@ def flag_tile(moveX: int, moveY: int):
     if (moveX, moveY) in UNDISCOVERED_TILES:
         UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
 
-def pick_random_tile():
+def pick_random_tile(mine_tiles: List[Tuple[int, int]]) -> Tuple[int, int]:
     """
         Helper function to randomly select a tile after ensuring that its not a guaranteed mine.
     """
+    for tile in mine_tiles:
+        if tile in UNDISCOVERED_TILES:
+            UNDISCOVERED_TILES.remove(tile)
+    # Randomly get a tile from the now-updated UNDISCOVERED_TILES
+    moveY, moveX = sample(UNDISCOVERED_TILES, 1)[0]
+    UNDISCOVERED_TILES.remove( (moveX, moveY) )
+    return moveX, moveY
 
 
 # Moving the main routine to a function allows for function calls and such
