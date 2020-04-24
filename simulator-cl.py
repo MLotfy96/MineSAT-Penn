@@ -2,18 +2,17 @@ import os
 from game.msgame import MSGame
 from solver import MineSAT
 from random import sample
-from typing import Tuple
+from typing import Tuple, List
 
-#game = MSGame(8, 8, 10, 5684, "127.0.0.1")    # 8x8, 10 minutes: "Basic" preset
-game = MSGame(16, 16, 40, 5684, "127.0.0.1")  # 16x16, 40 mines: "Intermediate" preset
-#game = MSGame(30, 16, 99, 5684, "127.0.0.1")  # 16x30, 99 mines: "Advanced" preset
-WIDTH = game.board.board_width
-HEIGHT = game.board.board_height
+#GAME = MSGame(8, 8, 10, 5684, "127.0.0.1")    # 8x8, 10 minutes: "Basic" preset
+GAME = MSGame(16, 16, 40, 5684, "127.0.0.1")  # 16x16, 40 mines: "Intermediate" preset
+#GAME = MSGame(30, 16, 99, 5684, "127.0.0.1")  # 16x30, 99 mines: "Advanced" preset
+WIDTH = GAME.board.board_width
+HEIGHT = GAME.board.board_height
 # To keep track of tiles we don't want to pick, either discovered+safe or mine
-# TODO (maybe): Change UNDISCOVERED_TILES to 0-indexing? idk
 UNDISCOVERED_TILES = set( (x, y) for x in range(1, WIDTH+1) for y in range(1, HEIGHT+1) )
-
-get_symbol = '012345678..?'
+# Mapping each entry in the numpy array to its character representation
+GET_SYMBOL = '012345678..?'
 
 # Cross-platform (Windows and POSIX, at least) screen clearing
 clear_screen = lambda: os.system("cls" if os.name=="nt" else "clear")
@@ -21,36 +20,19 @@ clear_screen = lambda: os.system("cls" if os.name=="nt" else "clear")
 def main():
     while True:
         clear_screen()
-        print("Current state of the board:\n")
-        print(game.get_board())
+        #print("Current state of the board:\n")
+        print(GAME.get_board())
 
-        if game.game_status == 1:
+        if GAME.game_status == 1:
             print("[MESSAGE] YOU WIN!\n")
             break
-        elif game.game_status == 0:
+        elif GAME.game_status == 0:
             print("[MESSAGE] YOU LOSE!\n")
             break
 
         # Create board representation for the solver
-        np_board = game.board.info_map
-        board = ['' for j in range(HEIGHT)]
-        for i in range(HEIGHT):
-            for j in range(WIDTH):
-                board[i] = board[i] + get_symbol[np_board[i][j]]
-                # If we have a discovered tile, update our set
-                if 0 <= np_board[i][j] <= 8:
-                    if (i+1, j+1) in UNDISCOVERED_TILES:  # np_board is 0-indexed, und_tiles is 1-indexed
-                        UNDISCOVERED_TILES.remove( (i+1, j+1) )  # Throws a KeyError if (i, j) isn't in set
-
+        board = update_board(GAME.board.info_map)
         solver = MineSAT(board)
-        safe_tiles = solver.find_tiles()
-
-        if len(safe_tiles) == 0:
-            print("There are no guaranteed safe tiles! :(\n")
-        else:
-            print("Guaranteed safe tiles:")
-            for i, (y, x) in enumerate(safe_tiles):
-                print(f"{i}) Row: {y-1}, Column: {x-1}")
         
         print("\nAdditional options:")
         print("C) Choose a tile yourself!")
@@ -71,23 +53,25 @@ def main():
                 for x, y in mine_tiles:
                     print(f"Row {x-1}, Column {y-1}")
             moveY, moveX = get_coord_input()
-            game.play_move("flag", moveX, moveY)
-            if (moveX, moveY) in UNDISCOVERED_TILES:
-                UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
+            flag_tile(moveX, moveY)
             continue
         elif move == "a":
             for moveY, moveX in solver.find_tiles("mine"):
-                moveX -= 1; moveY -= 1  # 1-indexed adjustment
-                game.play_move("flag", moveX, moveY)
-                if (moveX, moveY) in UNDISCOVERED_TILES:
-                    UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
+                flag_tile(moveX-1, moveY-1)  # Adjust for 1-based indexing from the solver
             continue
         elif move == "u":
             moveY, moveX = get_coord_input()
-            game.play_move("unflag", moveX, moveY)
+            GAME.play_move("unflag", moveX, moveY)
             UNDISCOVERED_TILES.add( (moveX, moveY) )  # Allow the unflagged tile to be chosen randomly again
             continue
         elif move == "c":
+            safe_tiles = solver.find_tiles()
+            if len(safe_tiles) == 0:
+                print("There are no guaranteed safe tiles! :(\n")
+            else:
+                print("Guaranteed safe tiles:")
+                for i, (y, x) in enumerate(safe_tiles):
+                    print(f"{i}) Row: {y-1}, Column: {x-1}")
             moveY, moveX = get_coord_input()
         elif move == "r":
             for tile in solver.find_tiles("mine"):
@@ -97,14 +81,13 @@ def main():
             moveY, moveX = sample(UNDISCOVERED_TILES, 1)[0]
             UNDISCOVERED_TILES.remove( (moveX, moveY) )
             moveX -= 1; moveY -= 1  # 1-indexed adjustment
-        elif move.isdecimal() and 0 <= int(move) < len(safe_tiles):
-            moveY, moveX = safe_tiles[int(move)]
-            moveX -= 1; moveY -= 1  # 1-indexed adjustment
+        elif move == "a":
+            pass  # Auto play function goes here
         else:
             print("Invalid input. Stop that! >:(")
             continue
 
-        game.play_move("click", moveX, moveY)
+        GAME.play_move("click", moveX, moveY)
 
 
 def get_coord_input() -> Tuple[int, int]:
@@ -125,6 +108,36 @@ def get_coord_input() -> Tuple[int, int]:
         pair.clear()
         i = 0
         usr_input = input("ERROR: No valid coordinate pair found.\nEnter the tile's coordinates in row, col order: ").replace(",", " ").replace(";", " ").split(" ")
+
+
+def update_board(np_game_board) -> List[str]:
+    """
+        Helper function to generate a string representation of the board.
+        Also updates the set of unknown tiles, for use when randomly selecting tiles.
+    """
+    np_board = np_game_board
+    board = ['' for j in range(HEIGHT)]
+    for i in range(HEIGHT):
+        for j in range(WIDTH):
+            board[i] = board[i] + GET_SYMBOL[np_board[i][j]]
+            # If we have a discovered tile, update our set
+            if 0 <= np_board[i][j] <= 8:
+                if (i+1, j+1) in UNDISCOVERED_TILES:  # np_board is 0-indexed, und_tiles is 1-indexed
+                    UNDISCOVERED_TILES.remove( (i+1, j+1) )  # Throws a KeyError if (i, j) isn't in set
+    return board
+
+def flag_tile(moveX: int, moveY: int):
+    """
+        Helper function to flag a given tile.
+    """
+    GAME.play_move("flag", moveX, moveY)
+    if (moveX, moveY) in UNDISCOVERED_TILES:
+        UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
+
+def pick_random_tile():
+    """
+        Helper function to randomly select a tile after ensuring that its not a guaranteed mine.
+    """
 
 
 # Moving the main routine to a function allows for function calls and such
