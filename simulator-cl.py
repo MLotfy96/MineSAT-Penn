@@ -1,9 +1,12 @@
+import os
 from game.msgame import MSGame
 from solver import MineSAT
 from random import sample
 from typing import Tuple
 
-game = MSGame(10, 10, 10, 5684, "127.0.0.1")
+#game = MSGame(8, 8, 10, 5684, "127.0.0.1")    # 8x8, 10 minutes: "Basic" preset
+game = MSGame(16, 16, 40, 5684, "127.0.0.1")  # 16x16, 40 mines: "Intermediate" preset
+#game = MSGame(30, 16, 99, 5684, "127.0.0.1")  # 16x30, 99 mines: "Advanced" preset
 WIDTH = game.board.board_width
 HEIGHT = game.board.board_height
 # To keep track of tiles we don't want to pick, either discovered+safe or mine
@@ -12,9 +15,12 @@ UNDISCOVERED_TILES = set( (x, y) for x in range(1, WIDTH+1) for y in range(1, HE
 
 get_symbol = '012345678..?'
 
+# Cross-platform (Windows and POSIX, at least) screen clearing
+clear_screen = lambda: os.system("cls" if os.name=="nt" else "clear")
 
 def main():
     while True:
+        clear_screen()
         print("Current state of the board:\n")
         print(game.get_board())
 
@@ -28,8 +34,8 @@ def main():
         # Create board representation for the solver
         np_board = game.board.info_map
         board = ['' for j in range(HEIGHT)]
-        for i in range(WIDTH):
-            for j in range(HEIGHT):
+        for i in range(HEIGHT):
+            for j in range(WIDTH):
                 board[i] = board[i] + get_symbol[np_board[i][j]]
                 # If we have a discovered tile, update our set
                 if 0 <= np_board[i][j] <= 8:
@@ -37,16 +43,7 @@ def main():
                         UNDISCOVERED_TILES.remove( (i+1, j+1) )  # Throws a KeyError if (i, j) isn't in set
 
         solver = MineSAT(board)
-        safe_tiles = []
-        mine_tiles = []
-
-        # Find all guaranteed safe tiles
-        for tile in solver.find_tiles("safe"):
-            safe_tiles.append(tile)
-
-        # Find all guaranteed mine tiles
-        for tile in solver.find_tiles("mine"):
-            mine_tiles.append(tile)
+        safe_tiles = solver.find_tiles()
 
         if len(safe_tiles) == 0:
             print("There are no guaranteed safe tiles! :(\n")
@@ -54,16 +51,11 @@ def main():
             print("Guaranteed safe tiles:")
             for i, (y, x) in enumerate(safe_tiles):
                 print(f"{i}) Row: {y-1}, Column: {x-1}")
-
-        if len(mine_tiles) != 0:
-            print("\nFYI, these are guaranteed mine tiles:")
-            for (y, x) in mine_tiles:
-                print(f"@ Row: {y-1}, Column: {x-1}")
         
         print("\nAdditional options:")
         print("C) Choose a tile yourself!")
         print("F) Flag a tile!")
-        print("A) Flag all guarantee mine tiles!")
+        print("A) Flag all guaranteed mine tiles!")
         print("U) Unflag a tile!")
         print("R) Pick a random tile!")
 
@@ -73,13 +65,18 @@ def main():
         # (Un)flagging is a special case where we use the different "flag" action, otherwise
         # our if/elif statements fall-through to the regular "click" action
         if move == "f":
+            mine_tiles = solver.find_tiles("mine")
+            if len(mine_tiles) > 0:
+                print("Here are all the known mines: ")
+                for x, y in mine_tiles:
+                    print(f"Row {x-1}, Column {y-1}")
             moveY, moveX = get_coord_input()
             game.play_move("flag", moveX, moveY)
             if (moveX, moveY) in UNDISCOVERED_TILES:
                 UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
             continue
         elif move == "a":
-            for moveY, moveX in mine_tiles:
+            for moveY, moveX in solver.find_tiles("mine"):
                 moveX -= 1; moveY -= 1  # 1-indexed adjustment
                 game.play_move("flag", moveX, moveY)
                 if (moveX, moveY) in UNDISCOVERED_TILES:
@@ -88,12 +85,12 @@ def main():
         elif move == "u":
             moveY, moveX = get_coord_input()
             game.play_move("unflag", moveX, moveY)
-            UNDISCOVERED_TILES.add(moveX, moveY)  # Allow the unflagged tile to be chosen randomly again
+            UNDISCOVERED_TILES.add( (moveX, moveY) )  # Allow the unflagged tile to be chosen randomly again
             continue
         elif move == "c":
             moveY, moveX = get_coord_input()
         elif move == "r":
-            for tile in mine_tiles:
+            for tile in solver.find_tiles("mine"):
                 if tile in UNDISCOVERED_TILES:
                     UNDISCOVERED_TILES.remove(tile)
             # Randomly get a tile from the now-updated UNDISCOVERED_TILES

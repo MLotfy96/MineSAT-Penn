@@ -5,7 +5,7 @@ from typing import Optional, Tuple, List
 Coordinate = Tuple[int, int]
 
 class MineSAT:
-    def __init__(self, board: List[str], num_solver_threads: int = 4):
+    def __init__(self, board: List[str], num_solver_threads: int = 1):
         self.board = board
         self.length = len(board)
         self.width = len(board[0])
