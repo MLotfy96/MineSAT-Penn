@@ -1,8 +1,10 @@
 import os
+import sys
 from game.msgame import MSGame
 from solver import MineSAT
 from random import sample
-from typing import Tuple, List
+from typing import Tuple, List, Optional
+from time import sleep
 
 #GAME = MSGame(8, 8, 10, 5684, "127.0.0.1")    # 8x8, 10 minutes: "Basic" preset
 GAME = MSGame(16, 16, 40, 5684, "127.0.0.1")  # 16x16, 40 mines: "Intermediate" preset
@@ -20,7 +22,6 @@ clear_screen = lambda: os.system("cls" if os.name=="nt" else "clear")
 def main():
     while True:
         clear_screen()
-        #print("Current state of the board:\n")
         print(GAME.get_board())
 
         if GAME.game_status == 1:
@@ -34,7 +35,8 @@ def main():
         board = update_board(GAME.board.info_map)
         solver = MineSAT(board)
         
-        print("\nAdditional options:")
+        print("Options:")
+        print("P) Play the game automatically!")
         print("C) Choose a tile yourself!")
         print("F) Flag a tile!")
         print("A) Flag all guaranteed mine tiles!")
@@ -66,7 +68,7 @@ def main():
             continue
         elif move == "c":
             safe_tiles = solver.find_tiles()
-            if len(safe_tiles) == 0:
+            if not safe_tiles:
                 print("There are no guaranteed safe tiles! :(\n")
             else:
                 print("Guaranteed safe tiles:")
@@ -74,10 +76,17 @@ def main():
                     print(f"{i}) Row: {y-1}, Column: {x-1}")
             moveY, moveX = get_coord_input()
         elif move == "r":
-            moveY, moveX = pick_random_tile(solver.find_tiles("mine"))
+            move = pick_random_tile(solver.find_tiles("mine"))
+            if move is None:
+                print("ERROR: No more random tiles to choose!", file=sys.stderr)
+                continue
+            else:
+                moveX = move[1]; moveY = move[0];
             moveX -= 1; moveY -= 1  # 1-indexed adjustment
-        elif move == "a":
-            pass  # Auto play function goes here
+        elif move == "p":
+            # Auto-play the game
+            auto_play()
+            continue
         else:
             print("Invalid input. Stop that! >:(")
             continue
@@ -121,6 +130,7 @@ def update_board(np_game_board) -> List[str]:
                     UNDISCOVERED_TILES.remove( (i+1, j+1) )  # Throws a KeyError if (i, j) isn't in set
     return board
 
+
 def flag_tile(moveX: int, moveY: int):
     """
         Helper function to flag a given tile.
@@ -129,17 +139,55 @@ def flag_tile(moveX: int, moveY: int):
     if (moveX, moveY) in UNDISCOVERED_TILES:
         UNDISCOVERED_TILES.remove( (moveX, moveY) )  # Prevent the flagged tile from being chosen randomly
 
-def pick_random_tile(mine_tiles: List[Tuple[int, int]]) -> Tuple[int, int]:
+
+def pick_random_tile(mine_tiles: List[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
     """
         Helper function to randomly select a tile after ensuring that its not a guaranteed mine.
     """
     for tile in mine_tiles:
         if tile in UNDISCOVERED_TILES:
             UNDISCOVERED_TILES.remove(tile)
+
     # Randomly get a tile from the now-updated UNDISCOVERED_TILES
-    moveY, moveX = sample(UNDISCOVERED_TILES, 1)[0]
-    UNDISCOVERED_TILES.remove( (moveX, moveY) )
+    if UNDISCOVERED_TILES:
+        moveY, moveX = sample(UNDISCOVERED_TILES, 1)[0]
+    else:  # If there are no more undiscovered tiles, then return None to signify that there's nothing left
+        return None
+
+    if (moveX, moveY) in UNDISCOVERED_TILES:
+        UNDISCOVERED_TILES.remove( (moveX, moveY) )
     return moveX, moveY
+
+def auto_play(sleep_timer: float=2.0):
+    """
+        Automatically play the game.
+    """
+    while GAME.game_status == 2:  # In progress
+        clear_screen()
+        print(GAME.get_board())
+        # First get the board state
+        board = update_board(GAME.board.info_map)
+        solver = MineSAT(board)
+
+        # Find out if it can make any moves
+        safe_tiles = solver.find_tiles()
+        if not safe_tiles:  # If not, say a prayer and hope for the best
+            mine_tiles = solver.find_tiles("mine")
+            move = pick_random_tile(mine_tiles)
+            if move is None:  # No more undiscovered tiles, flag the mine tiles and win!
+                print("No more random tiles, flagging all mines")
+                for moveY, moveX in mine_tiles:
+                    GAME.play_move("flag", moveX-1, moveY-1)
+            else:
+                moveX = move[1]; moveY = move[0];
+                print(f"Couldn't find a safe tile. Randomly clicking row {moveY-1}, column {moveX-1}")
+                #print(UNDISCOVERED_TILES)
+                GAME.play_move("click", moveX-1, moveY-1)
+        else:  # Otherwise, play any safe moves
+            for moveY, moveX in safe_tiles:
+                print(f"Clicking row {moveY-1}, column {moveX-1}")
+                GAME.play_move("click", moveX-1, moveY-1)  # The solver is 1-indexed, and is killing me softly
+        sleep(sleep_timer)
 
 
 # Moving the main routine to a function allows for function calls and such
