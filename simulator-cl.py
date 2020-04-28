@@ -84,7 +84,6 @@ def main():
                 moveX = move[1]; moveY = move[0];
             moveX -= 1; moveY -= 1  # 1-indexed adjustment
         elif move == "p":
-            # Auto-play the game
             auto_play()
             continue
         else:
@@ -181,7 +180,6 @@ def auto_play(sleep_timer: float=2.0):
             else:
                 moveX = move[1]; moveY = move[0];
                 print(f"Couldn't find a safe tile. Randomly clicking row {moveY-1}, column {moveX-1}")
-                #print(UNDISCOVERED_TILES)
                 GAME.play_move("click", moveX-1, moveY-1)
         else:  # Otherwise, play any safe moves
             for moveY, moveX in safe_tiles:
