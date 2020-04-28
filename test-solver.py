@@ -12,14 +12,25 @@ _CLEAN_99_BOARD = [
 ]
 
 _TEST_BOARD = [
-    "0002?2??",
-    "0003?421",
+    "0002????",
+    "0003??21",
     "0125??10",
     "01???310",
     "01232100",
     "00011100",
     "0001?211",
-    "000112?1"
+    "000112??"
+]
+
+_TEST_BOARD_OLD = [
+    "0002????",
+    "0003????",
+    "0125????",
+    "01??????",
+    "0123????",
+    "0001????",
+    "0001????",
+    "0001????"
 ]
 
 _CHALLENGE_BOARD = [
@@ -32,5 +43,6 @@ _CHALLENGE_BOARD = [
 ]
 
 MS = MineSAT(_TEST_BOARD)
-tiles = MS.find_safe_tiles()
-print(tiles)
+safe_tiles = MS.find_tiles()
+mine_tiles = MS.find_tiles(tile_type="mine")
+print(f'{safe_tiles}\n{mine_tiles}')
