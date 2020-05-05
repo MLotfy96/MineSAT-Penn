@@ -11,6 +11,10 @@ except ImportError:
 from game.msgame import MSGame
 import gui
 
+# Modify the dimensions of the board and the number of mines
+HEIGHT = 9
+WIDTH = 9
+NUM_MINES = 10
 
 def ms_game_main(board_width, board_height, num_mines, port, ip_add):
     """Main function for Mine Sweeper Game.
@@ -73,13 +77,13 @@ if __name__ == '__main__':
                                                   Reinforcement Learning \
                                                   by Yuhuang Hu")
     parser.add_argument("--board-width", type=int,
-                        default=12,
+                        default=WIDTH,
                         help="width of the board.")
     parser.add_argument("--board-height", type=int,
-                        default=12,
+                        default=HEIGHT,
                         help="height of the board.")
     parser.add_argument("--num-mines", type=int,
-                        default=15,
+                        default=NUM_MINES,
                         help="number of mines.")
     parser.add_argument("--port", type=int,
                         default=5678,
