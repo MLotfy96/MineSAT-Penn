@@ -24,7 +24,11 @@ If the command-line or graphical interface won't launch, try installing `mineswe
 
 ## File Structure
 **solver.py**: Contains the class for the Solver itself.
+
 **simulator-cl.py**: The command-line interface for the game, includes the auto-play ability and demonstrates a bare-bones example of how one can interface with the game and use the solver as a helper.
+
 **simulator-gui.py**: The graphical interface for the game, demonstrates how one can use the solver to interface with a graphical interface.
+
 *game/* (directory): Contains the necessary files for the Minesweeper game, not necessary for the solver.
+
 *test-solver.py*: Some nonsense for testing the solver, not super relevant.
