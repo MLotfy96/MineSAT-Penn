@@ -1,5 +1,7 @@
-# Overview
+# Minesweeper-Solver
+## Overview
 A solver for the game *Minesweeper* using Google's OR-Tools to locate any safe/mine tiles based on the current board state. Includes both a command-line interface and a graphical interface for the game that's integrated with the solver.
+
 
 ## What we've completed
 ### Solver
@@ -16,12 +18,13 @@ The command-line interface allows for: manually choosing tiles to reveal or flag
 The graphical interface was developed later, and doesn't allow for automatically playing the game like the command-line version does. However, it will highlight all guaranteed safe tiles in green. To play this version, left-click to reveal a tile, right-click to flag a tile.
 
 
-# Installation
+## Installation
 Our solver requires OR-Tools, while the underlying game (based on Minesweeper by Yuhuang Hu) requires `numpy` for internal use, and `pyqt` for the GUI:
 ```
 pip install ortools numpy pyqt
 ```
 If the command-line or graphical interface won't launch, try installing `minesweeper` as well.
+
 
 ## File Structure
 **solver.py**: Contains the class for the Solver itself.
